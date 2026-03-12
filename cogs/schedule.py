@@ -49,21 +49,18 @@ def build_poll_embed(
     total_pages = math.ceil(poll["days"] / DAYS_PER_PAGE)
     embed = discord.Embed(title=f"📅 {poll['title']}", color=0x5865F2)
 
+    day_blocks = []
     for day_idx in days_for_page(page, poll["days"]):
         d = poll_date(poll["start_date"], day_idx)
-        # 日付ヘッダー（横幅いっぱいに表示）
-        embed.add_field(name=f"📅 {fmt_date(d)}", value="\u200b", inline=False)
-        # 午前・午後・夜を横並びで表示
+        slot_parts = []
         for slot_idx in range(3):
             c = counts.get((day_idx, slot_idx), {})
             av = c.get(1, 0)
             ma = c.get(2, 0)
             un = c.get(3, 0)
-            embed.add_field(
-                name=f"{SLOT_EMOJIS[slot_idx]} {SLOT_NAMES[slot_idx]}",
-                value=f"✅ {av}　🔺 {ma}　❌ {un}",
-                inline=True,
-            )
+            slot_parts.append(f"{SLOT_EMOJIS[slot_idx]}{SLOT_NAMES[slot_idx]} ✅{av} 🔺{ma} ❌{un}")
+        day_blocks.append(f"**{fmt_date(d)}**\n" + "　　".join(slot_parts))
+    embed.description = "\n\n".join(day_blocks)
 
     if respondents:
         names = "　".join(r["username"] for r in respondents)
@@ -81,25 +78,25 @@ def build_poll_embed(
 
 def build_vote_embed(poll: dict, page: int, user_votes: dict) -> discord.Embed:
     total_pages = math.ceil(poll["days"] / DAYS_PER_PAGE)
+
+    day_blocks = []
+    for day_idx in days_for_page(page, poll["days"]):
+        d = poll_date(poll["start_date"], day_idx)
+        slot_parts = []
+        for slot_idx in range(3):
+            s = user_votes.get((day_idx, slot_idx), 0)
+            slot_parts.append(f"{SLOT_EMOJIS[slot_idx]}{SLOT_NAMES[slot_idx]} {STATUS_EMOJI[s]}")
+        day_blocks.append(f"**{fmt_date(d)}**\n" + "　　".join(slot_parts))
+
     embed = discord.Embed(
         title=f"🗳️ あなたの回答 — {poll['title']}",
         description=(
-            "各スロットのボタンをクリックして状態を切り替えてください\n"
             "⬜ 未入力 → ✅ 参加可 → 🔺 頑張ればいける → ❌ 未定or参加不可\n"
-            "考えるのが面倒な日は未定のままでいいです。"
+            "考えるのが面倒な日は未定のままでいいです。\n\n"
+            + "\n\n".join(day_blocks)
         ),
         color=0x57F287,
     )
-    for day_idx in days_for_page(page, poll["days"]):
-        d = poll_date(poll["start_date"], day_idx)
-        lines = []
-        for slot_idx in range(3):
-            s = user_votes.get((day_idx, slot_idx), 0)
-            lines.append(
-                f"{SLOT_EMOJIS[slot_idx]} {SLOT_NAMES[slot_idx]}：{STATUS_EMOJI[s]} {STATUS_LABEL[s]}"
-            )
-        embed.add_field(name=fmt_date(d), value="\n".join(lines), inline=True)
-
     embed.set_footer(text=f"{page + 1}/{total_pages} ページ　変更は即時保存されます")
     return embed
 
