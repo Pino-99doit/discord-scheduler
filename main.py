@@ -1,3 +1,4 @@
+import asyncio
 import os
 import discord
 from discord.ext import commands
@@ -6,6 +7,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_PATH = os.getenv("DB_PATH", "scheduler.db")
+
+
+async def start_health_server():
+    """Render の Web Service 用ヘルスチェックサーバー（ポートを開くだけ）。"""
+    port = int(os.getenv("PORT", 8080))
+
+    async def handle(reader, writer):
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK")
+        await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(handle, "0.0.0.0", port)
+    async with server:
+        await server.serve_forever()
 
 
 class SchedulerBot(commands.Bot):
@@ -47,10 +62,15 @@ class SchedulerBot(commands.Bot):
         print(f"Logged in as {self.user} ({self.user.id})")
 
 
-bot = SchedulerBot()
-
-if __name__ == "__main__":
+async def main():
     token = os.getenv("DISCORD_TOKEN")
     if not token:
         raise RuntimeError("DISCORD_TOKEN が設定されていません。.env ファイルを確認してください。")
-    bot.run(token)
+    bot = SchedulerBot()
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(start_health_server())
+        tg.create_task(bot.start(token))
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
