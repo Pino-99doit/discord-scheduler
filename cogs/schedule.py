@@ -16,7 +16,7 @@ DAY_JP = ["月", "火", "水", "木", "金", "土", "日"]
 
 # status int → display
 STATUS_EMOJI = {0: "⬜", 1: "✅", 2: "🔺", 3: "❌"}
-STATUS_LABEL = {0: "未入力", 1: "参加可", 2: "未定", 3: "参加不可"}
+STATUS_LABEL = {0: "未入力", 1: "参加可", 2: "頑張ればいける", 3: "未定or参加不可"}
 STATUS_STYLE = {
     0: discord.ButtonStyle.secondary,
     1: discord.ButtonStyle.success,
@@ -51,17 +51,19 @@ def build_poll_embed(
 
     for day_idx in days_for_page(page, poll["days"]):
         d = poll_date(poll["start_date"], day_idx)
-        lines = []
+        # 日付ヘッダー（横幅いっぱいに表示）
+        embed.add_field(name=f"📅 {fmt_date(d)}", value="\u200b", inline=False)
+        # 午前・午後・夜を横並びで表示
         for slot_idx in range(3):
             c = counts.get((day_idx, slot_idx), {})
             av = c.get(1, 0)
             ma = c.get(2, 0)
             un = c.get(3, 0)
-            lines.append(
-                f"{SLOT_EMOJIS[slot_idx]} {SLOT_NAMES[slot_idx]}　"
-                f"✅ {av}　🔺 {ma}　❌ {un}"
+            embed.add_field(
+                name=f"{SLOT_EMOJIS[slot_idx]} {SLOT_NAMES[slot_idx]}",
+                value=f"✅ {av}　🔺 {ma}　❌ {un}",
+                inline=True,
             )
-        embed.add_field(name=f"**{fmt_date(d)}**", value="\n".join(lines), inline=True)
 
     if respondents:
         names = "　".join(r["username"] for r in respondents)
@@ -83,7 +85,8 @@ def build_vote_embed(poll: dict, page: int, user_votes: dict) -> discord.Embed:
         title=f"🗳️ あなたの回答 — {poll['title']}",
         description=(
             "各スロットのボタンをクリックして状態を切り替えてください\n"
-            "⬜ 未入力 → ✅ 参加可 → 🔺 未定 → ❌ 参加不可"
+            "⬜ 未入力 → ✅ 参加可 → 🔺 頑張ればいける → ❌ 未定or参加不可\n"
+            "考えるのが面倒な日は未定のままでいいです。"
         ),
         color=0x57F287,
     )
